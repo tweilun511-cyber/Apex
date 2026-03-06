@@ -445,21 +445,71 @@ const genId=()=>'s'+Date.now()+Math.random().toString(36).slice(2,6);
 const txId=()=>'t'+Date.now()+Math.random().toString(36).slice(2,5);
 
 // ─── STORAGE ─────────────────────────────────────────
-function save(){localStorage.setItem('apex_v6',JSON.stringify(S));}
-function load(){
-  try{const r=localStorage.getItem('apex_v5');if(r)S=JSON.parse(r);}catch(e){S={};}
+const SB_URL='https://paapudzcfkufdhoyllme.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhYXB1ZHpjZmt1ZmRob3lsbG1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NzE1NjksImV4cCI6MjA4ODM0NzU2OX0.GMmx43KiWaCQkCAVd7-bF-uzNYkI306vb4jJc2nWykg';
+let saveTimer=null;
+
+function save(){
+  // Always save to localStorage as instant backup
+  try{localStorage.setItem('apex_v6',JSON.stringify(S));}catch(e){}
+  // Debounce cloud save by 1.5s to avoid hammering API
+  if(saveTimer)clearTimeout(saveTimer);
+  saveTimer=setTimeout(saveCloud,1500);
+}
+
+async function saveCloud(){
+  try{
+    const res=await fetch(SB_URL+'/rest/v1/apex_data?id=eq.main',{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
+      body:JSON.stringify({data:S,updated_at:new Date().toISOString()})
+    });
+    if(!res.ok)throw new Error('PATCH failed '+res.status);
+  }catch(e){console.error('Cloud save failed:',e);}
+}
+
+async function loadCloud(){
+  try{
+    const res=await fetch(SB_URL+'/rest/v1/apex_data?id=eq.main&select=data',{
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+    });
+    if(!res.ok)throw new Error('Load failed '+res.status);
+    const rows=await res.json();
+    if(rows&&rows.length&&rows[0].data&&Object.keys(rows[0].data).length>0){
+      S=rows[0].data;
+      return true;
+    }
+  }catch(e){console.error('Cloud load failed:',e);}
+  return false;
+}
+function initDefaults(){
   if(!S.sess)S.sess={};
   if(!S.pkgRem)S.pkgRem={};
   if(!S.pkgHist)S.pkgHist={};
   if(!S.tx)S.tx=[];
-  // migrate from v5
-  if(!S.sess){try{const old=localStorage.getItem('apex_v5');if(old){const o=JSON.parse(old);S.sess=o.sess||{};S.pkgRem=o.pkgRem||{};S.pkgHist=o.pkgHist||{};S.tx=o.tx||[];}}catch(e){}}
   if(!S.goals)S.goals={targetIncome:20000,targetNW:100000,monthlyExpenses:3000,savingsGoal:5000};
   if(!S.goals.monthlyExpenses)S.goals.monthlyExpenses=3000;
   if(!S.goals.savingsGoal)S.goals.savingsGoal=5000;
   CLIENTS.filter(c=>c.payMode==='package').forEach(c=>{
     if(S.pkgRem[c.id]==null)S.pkgRem[c.id]=c.pkgSize||10;
   });
+}
+
+function load(){
+  try{const r=localStorage.getItem('apex_v6');if(r)S=JSON.parse(r);}catch(e){S={};}
+  initDefaults();
+}
+
+async function loadAndSync(){
+  const gotCloud=await loadCloud();
+  if(gotCloud){
+    initDefaults();
+    try{localStorage.setItem('apex_v6',JSON.stringify(S));}catch(e){}
+  } else {
+    load();
+  }
+  buildRange();save();
+  renderSched();renderClients();renderGoals();
 }
 
 // ─── SESSION BUILDER ─────────────────────────────────
@@ -965,7 +1015,7 @@ function exportData(){
 }
 function confirmClear(){
   if(confirm('Clear ALL data? This cannot be undone.')){
-    localStorage.removeItem('apex_v6');localStorage.removeItem('apex_v5');S={};load();
+    localStorage.removeItem('apex_v6');localStorage.removeItem('apex_v5');S={};initDefaults();saveCloud();
     showToast('Data cleared');renderSched();renderMoney();renderClients();renderGoals();
   }
 }
@@ -992,8 +1042,11 @@ function closeMO(id,e){if(e.target.id===id)closeMOId(id);}
 function closeMOId(id){document.getElementById(id).classList.remove('open');}
 
 // ─── BOOT ────────────────────────────────────────────
+// Boot — load local instantly, then sync from cloud
 load();buildRange();save();
 renderSched();renderClients();renderGoals();
+// Then sync cloud in background
+loadAndSync();
 </script>
 </body>
 </html>
