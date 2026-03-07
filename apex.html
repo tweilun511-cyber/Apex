@@ -327,6 +327,7 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--cream);overf
   <div class="hdr">
     <div class="hdr-row">
       <div><div class="hdr-title">Clients</div><div class="hdr-sub" id="clientsSub">19 active</div></div>
+      <button class="hdr-btn" onclick="openAddClient()">+ Client</button>
     </div>
   </div>
   <div class="spacer"></div>
@@ -382,6 +383,32 @@ body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--cream);overf
       <button class="btn-s" onclick="closeMOId('moResched')">Cancel</button>
       <button class="btn-p" style="margin-top:0;" onclick="confirmResched()">Confirm</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD CLIENT -->
+<div class="mo" id="moAddClient" onclick="closeMO('moAddClient',event)">
+  <div class="mo-box">
+    <div class="mo-hdr"><div class="mo-title">Add Client</div><button class="mo-x" onclick="closeMOId('moAddClient')">✕</button></div>
+    <div class="fld"><label>Name</label><input class="inp" id="acName" type="text" placeholder="e.g. Sarah"></div>
+    <div class="fld"><label>Rate (RM per session)</label><input class="inp" id="acRate" type="number" inputmode="numeric" placeholder="100"></div>
+    <div class="fld"><label>Sessions per week</label><input class="inp" id="acSPW" type="number" inputmode="decimal" step="0.5" placeholder="2"></div>
+    <div class="fld"><label>Training Days</label><input class="inp" id="acDays" type="text" placeholder="e.g. Mon · Wed · Fri"></div>
+    <div class="fld"><label>Payment Mode</label>
+      <select class="inp" id="acPayMode" onchange="togglePkgSize()">
+        <option value="per_session">Per Session</option>
+        <option value="package">Package</option>
+        <option value="monthly">Monthly</option>
+        <option value="weekly">Weekly</option>
+      </select>
+    </div>
+    <div class="fld" id="acPkgFld" style="display:none;"><label>Package Size (sessions)</label><input class="inp" id="acPkgSize" type="number" inputmode="numeric" placeholder="10"></div>
+    <div class="fld"><label>Payment Note</label><input class="inp" id="acPayNote" type="text" placeholder="e.g. Pays after each session"></div>
+    <div class="fld" style="display:flex;align-items:center;gap:10px;">
+      <input type="checkbox" id="acNoRevenue" style="width:18px;height:18px;accent-color:var(--gold);">
+      <label style="font-size:12px;color:var(--cm);letter-spacing:normal;text-transform:none;">No revenue (personal/family)</label>
+    </div>
+    <button class="btn-p" onclick="confirmAddClient()" style="margin-top:14px;">Add Client</button>
   </div>
 </div>
 
@@ -1018,6 +1045,47 @@ function confirmClear(){
     localStorage.removeItem('apex_v6');localStorage.removeItem('apex_v5');S={};initDefaults();saveCloud();
     showToast('Data cleared');renderSched();renderMoney();renderClients();renderGoals();
   }
+}
+
+// ─── ADD CLIENT ──────────────────────────────────────
+function openAddClient(){
+  document.getElementById('acName').value='';
+  document.getElementById('acRate').value='';
+  document.getElementById('acSPW').value='';
+  document.getElementById('acDays').value='';
+  document.getElementById('acPayMode').value='per_session';
+  document.getElementById('acPkgSize').value='10';
+  document.getElementById('acPayNote').value='';
+  document.getElementById('acNoRevenue').checked=false;
+  document.getElementById('acPkgFld').style.display='none';
+  document.getElementById('moAddClient').classList.add('open');
+}
+function togglePkgSize(){
+  const mode=document.getElementById('acPayMode').value;
+  document.getElementById('acPkgFld').style.display=mode==='package'?'block':'none';
+}
+function confirmAddClient(){
+  const name=document.getElementById('acName').value.trim();
+  const rate=parseFloat(document.getElementById('acRate').value)||0;
+  const spw=parseFloat(document.getElementById('acSPW').value)||1;
+  const days=document.getElementById('acDays').value.trim()||'TBD';
+  const payMode=document.getElementById('acPayMode').value;
+  const pkgSize=parseInt(document.getElementById('acPkgSize').value)||10;
+  const payNote=document.getElementById('acPayNote').value.trim()||'';
+  const noRevenue=document.getElementById('acNoRevenue').checked;
+  if(!name){showToast('Enter a name');return;}
+  // Generate new ID (max existing + 1)
+  const maxId=Math.max(0,...CLIENTS.map(c=>c.id));
+  const newId=maxId+1;
+  const newClient={id:newId,name,rate,sessPerWeek:spw,days,payMode,payNote,noRevenue:noRevenue||undefined};
+  if(payMode==='package')newClient.pkgSize=pkgSize;
+  CLIENTS.push(newClient);
+  if(payMode==='package')S.pkgRem[newId]=pkgSize;
+  save();
+  closeMOId('moAddClient');
+  renderClients();
+  document.getElementById('clientsSub').textContent=CLIENTS.length+' active';
+  showToast(name+' added');
 }
 
 // ─── ADD SESSION ─────────────────────────────────────
