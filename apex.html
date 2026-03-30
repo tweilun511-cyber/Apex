@@ -816,7 +816,12 @@ function doUndo(){
   document.getElementById('toast').classList.remove('show');
 }
 
-// ─── MONEY ───────────────────────────────────────────
+// ─── MONEY
+function toggleTxAll(el){
+  showAllTx=!showAllTx;
+  el.textContent=showAllTx?'This month':'All time';
+  renderMoney();
+} ───────────────────────────────────────────
 function renderMoney(){
   const td=today();
   const now=new Date();
@@ -832,7 +837,7 @@ function renderMoney(){
   const totalInv=S.tx.filter(t=>t.type==='invest').reduce((a,t)=>a+t.amount,0);
   const net=mIn-mOut;
   const netC=net>=0?'#6ecf94':'#e07878';
-  const recent=[...S.tx].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20);
+  const recent=[...S.tx].sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('moneyContent').innerHTML=`
     <div class="hero-card">
       <div class="hc-label">Today — ${fmtDLong(td)}</div>
@@ -857,9 +862,12 @@ function renderMoney(){
       <div class="mc-row"><span class="mc-lbl">Net Profit</span><span class="mc-val" style="color:${netC};">${rm(net)}</span></div>
       <div class="mc-row" style="border-top:1px solid rgba(126,184,247,.15);"><span class="mc-lbl" style="color:#7eb8f7;">Total Portfolio Value</span><span class="mc-val" style="color:#7eb8f7;">${rm(totalInv)}</span></div>
     </div>
-    <div class="sec-hdr"><div class="sec-title">Recent</div></div>
-    <div class="tx-list">
-      ${recent.length?recent.map(t=>`
+    <div class="sec-hdr">
+      <div class="sec-title">${MON[now.getMonth()]} Transactions</div>
+      <span class="sec-toggle" onclick="toggleTxAll(this)">All time</span>
+    </div>
+    <div class="tx-list" id="txList">
+      ${(showAllTx?recent:recent.filter(t=>t.date.startsWith(mk))).length?(showAllTx?recent:recent.filter(t=>t.date.startsWith(mk))).map(t=>`
         <div class="tx-item">
           <div class="tx-dot ${t.type==='income'?'in':t.type==='invest'?'inv':'out'}"></div>
           <div class="tx-body">
@@ -867,7 +875,7 @@ function renderMoney(){
             <div class="tx-meta">${fmtD(t.date)} · ${t.method||'—'}${t.cn?' · '+t.cn:''}</div>
           </div>
           <div class="tx-amt ${t.type==='income'?'in':t.type==='invest'?'inv':'out'}">${t.type==='income'?'+':t.type==='invest'?'▲':'−'}${rm(t.amount)}</div>
-        </div>`).join(''):`<div style="padding:16px 18px;font-size:11px;color:var(--cf);">No transactions yet — tap + Income or + Expense</div>`}
+        </div>`).join(''):`<div style="padding:16px 18px;font-size:11px;color:var(--cf);">No transactions yet</div>`}
     </div>
     <div class="spacer"></div>`;
 }
