@@ -821,7 +821,8 @@ function toggleTxAll(el){
   showAllTx=!showAllTx;
   el.textContent=showAllTx?'This month':'All time';
   renderMoney();
-} ───────────────────────────────────────────
+}
+
 function renderMoney(){
   const td=today();
   const now=new Date();
