@@ -463,6 +463,7 @@ let pendReschedId=null;
 let pendTxType='income';
 let xSess={};  // expanded sessions
 let xClient={}; // expanded clients
+let showAllTx=false;
 
 // ─── UTILS ───────────────────────────────────────────
 const today=()=>{const d=new Date();return dISO(d);};
@@ -533,15 +534,17 @@ function load(){
 }
 
 async function loadAndSync(){
-  const gotCloud=await loadCloud();
-  if(gotCloud){
-    initDefaults();
-    try{localStorage.setItem('apex_v6',JSON.stringify(S));}catch(e){}
-  } else {
-    load();
+  try{
+    const gotCloud=await loadCloud();
+    if(gotCloud){
+      initDefaults();
+      try{localStorage.setItem('apex_v6',JSON.stringify(S));}catch(e){}
+      buildRange();save();
+      renderSched();renderMoney();renderClients();renderGoals();
+    }
+  }catch(e){
+    console.error('Sync error:',e);
   }
-  buildRange();save();
-  renderSched();renderClients();renderGoals();
 }
 
 // ─── SESSION BUILDER ─────────────────────────────────
@@ -1133,10 +1136,10 @@ function closeMO(id,e){if(e.target.id===id)closeMOId(id);}
 function closeMOId(id){document.getElementById(id).classList.remove('open');}
 
 // ─── BOOT ────────────────────────────────────────────
-// Boot — load local instantly, then sync from cloud
+// Boot — load local instantly and render immediately
 load();buildRange();save();
-renderSched();renderClients();renderGoals();
-// Then sync cloud in background
+renderSched();renderMoney();renderClients();renderGoals();
+// Then sync cloud in background (won't block UI)
 loadAndSync();
 </script>
 </body>
