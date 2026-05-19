@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>CoachFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #080808;
+    --surface: #111111;
+    --surface2: #181818;
+    --surface3: #202020;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --accent: #E8B84B;
+    --accent-dim: rgba(232,184,75,0.12);
+    --accent-glow: rgba(232,184,75,0.25);
+    --green: #3DD68C;
+    --green-dim: rgba(61,214,140,0.1);
+    --red: #FF6B6B;
+    --red-dim: rgba(255,107,107,0.1);
+    --blue: #5B9CF6;
+    --blue-dim: rgba(91,156,246,0.1);
+    --text: #F0F0F0;
+    --text2: #888;
+    --text3: #444;
+    --radius: 18px;
+    --radius-sm: 12px;
+    --tab-h: 76px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 430px;
+    margin: 0 auto;
+    position: relative;
+    background: var(--bg);
+  }
+
+  /* Subtle grid texture */
+  #app::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    max-width: 430px;
+    margin: 0 auto;
+    background-image: radial-gradient(circle at 20% 20%, rgba(232,184,75,0.03) 0%, transparent 50%),
+                      radial-gradient(circle at 80% 80%, rgba(91,156,246,0.02) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 16px;
+    padding-bottom: calc(var(--tab-h) + var(--safe-bottom) + 16px);
+    display: none;
+    position: relative;
+    z-index: 1;
+  }
+  .page.active { display: block; }
+
+  /* Scrollbar */
+  .page::-webkit-scrollbar { width: 0; }
+
+  /* ── TABS ── */
+  .tabs {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 430px;
+    background: rgba(10,10,10,0.92);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-top: 1px solid var(--border);
+    display: flex;
+    height: calc(var(--tab-h) + var(--safe-bottom));
+    align-items: flex-start;
+    padding-top: 12px;
+    padding-bottom: var(--safe-bottom);
+    z-index: 100;
+  }
+
+  .tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .tab-icon-wrap {
+    width: 36px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    transition: all 0.2s;
+    font-size: 18px;
+  }
+
+  .tab.active .tab-icon-wrap {
+    background: var(--accent-dim);
+  }
+
+  .tab-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text3);
+    letter-spacing: 0.2px;
+    font-family: 'Inter', sans-serif;
+    transition: color 0.2s;
+  }
+  .tab.active .tab-label { color: var(--accent); }
+
+  /* Center log button */
+  .tab-ql {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  .tab-ql-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-top: -26px;
+    box-shadow: 0 0 0 1px rgba(232,184,75,0.3), 0 8px 24px rgba(232,184,75,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .tab-ql-btn:active { transform: scale(0.91); box-shadow: 0 4px 12px rgba(232,184,75,0.2); }
+  .tab-ql-label { font-size: 10px; font-weight: 600; color: var(--accent); margin-top: 3px; letter-spacing: 0.2px; }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    padding: 20px 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .page-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .page-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 3px;
+    font-weight: 400;
+  }
+
+  /* ── HERO CARD (Dashboard cashflow) ── */
+  .hero-card {
+    background: linear-gradient(135deg, #1a1500 0%, #151515 60%, #0d0d0d 100%);
+    border: 1px solid rgba(232,184,75,0.2);
+    border-radius: 22px;
+    padding: 22px 20px;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 140px; height: 140px;
+    background: radial-gradient(circle, rgba(232,184,75,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: rgba(232,184,75,0.6);
+    margin-bottom: 8px;
+  }
+  .hero-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .hero-sub {
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  /* ── STAT GRID ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    opacity: 0.6;
+  }
+
+  .stat-card.green-accent::after { background: var(--green); }
+  .stat-card.red-accent::after { background: var(--red); }
+  .stat-card.yellow-accent::after { background: var(--accent); }
+  .stat-card.blue-accent::after { background: var(--blue); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text2);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.yellow { color: var(--accent); }
+  .stat-value.blue { color: var(--blue); }
+  .stat-card.wide { grid-column: span 2; display: flex; justify-content: space-between; align-items: center; }
+  .stat-card.wide::after { width: 50%; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+  }
+
+  .card-sm {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 15px 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    width: 100%;
+    letter-spacing: -0.1px;
+  }
+  .btn:active { transform: scale(0.965); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    box-shadow: 0 4px 16px var(--accent-glow);
+  }
+  .btn-primary:active { background: #d4a43e; box-shadow: none; }
+
+  .btn-secondary { background: var(--surface3); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+
+  .btn-danger {
+    background: var(--red-dim);
+    color: var(--red);
+    border: 1px solid rgba(255,107,107,0.15);
+  }
+  .btn-green {
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid rgba(61,214,140,0.15);
+  }
+  .btn-sm { padding: 9px 14px; font-size: 13px; border-radius: 10px; }
+
+  /* ── INPUTS ── */
+  .input-group { margin-bottom: 14px; }
+
+  .input-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 7px;
+    display: block;
+  }
+
+  .input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 13px 15px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  select.input { cursor: pointer; }
+  textarea.input { resize: none; height: 80px; }
+
+  /* ── CLIENT LIST ── */
+  .client-item {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 15px 16px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, transform 0.1s;
+  }
+  .client-item:active { background: var(--surface2); transform: scale(0.99); }
+  .client-info { flex: 1; }
+  .client-name { font-size: 16px; font-weight: 600; margin-bottom: 3px; letter-spacing: -0.2px; }
+  .client-meta { font-size: 12px; color: var(--text2); }
+  .client-right { text-align: right; }
+
+  .sessions-badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .badge-ok { background: var(--green-dim); color: var(--green); }
+  .badge-low { background: var(--accent-dim); color: var(--accent); }
+  .badge-zero { background: rgba(255,255,255,0.06); color: var(--text2); }
+
+  /* ── AVATAR INITIAL ── */
+  .client-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--surface3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--accent);
+    margin-right: 12px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: #121212;
+    border-radius: 28px 28px 0 0;
+    border-top: 1px solid var(--border2);
+    padding: 8px 20px 24px;
+    width: 100%;
+    max-width: 430px;
+    max-height: 92vh;
+    overflow-y: auto;
+    transform: translateY(50px);
+    transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+    padding-bottom: calc(24px + var(--safe-bottom));
+  }
+  .modal::-webkit-scrollbar { width: 0; }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-handle {
+    width: 40px;
+    height: 4px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    margin: 12px auto 20px;
+  }
+
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 20px;
+    letter-spacing: -0.5px;
+  }
+
+  /* Client pill in modal */
+  .client-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(232,184,75,0.15);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+  }
+  .client-pill-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .client-pill-name { font-size: 16px; font-weight: 700; color: var(--accent); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-90px);
+    background: rgba(20,20,20,0.95);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 11px 20px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 999;
+    transition: transform 0.35s cubic-bezier(0.34,1.2,0.64,1);
+    white-space: nowrap;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    letter-spacing: -0.1px;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: rgba(61,214,140,0.4); color: var(--green); }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text3);
+    margin: 18px 0 10px;
+  }
+
+  /* ── EXPENSE / ACTIVITY ITEMS ── */
+  .expense-item {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 13px 15px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    transition: border-color 0.12s;
+  }
+  .expense-left { flex: 1; }
+  .expense-cat {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 3px;
+  }
+  .expense-notes { font-size: 13px; color: var(--text2); margin-top: 1px; }
+  .expense-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--red);
+  }
+  .expense-date { font-size: 11px; color: var(--text3); text-align: right; margin-top: 3px; }
+
+  /* ── QUICK LOG ── */
+  .ql-client-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .ql-client-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .ql-client-btn:active { transform: scale(0.95); }
+  .ql-client-btn.selected {
+    background: var(--accent-dim);
+    border-color: rgba(232,184,75,0.4);
+  }
+  .ql-client-btn.selected::before {
+    content: '✓';
+    position: absolute;
+    top: 6px; right: 8px;
+    font-size: 10px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .ql-client-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; letter-spacing: -0.1px; }
+  .ql-client-sessions { font-size: 11px; color: var(--text2); }
+
+  /* ── ACTION ROW ── */
+  .action-row { display: flex; gap: 8px; }
+  .action-row .btn { flex: 1; }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* ── MONTH SWITCHER ── */
+  .month-switcher { display: flex; align-items: center; gap: 8px; }
+  .month-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+  }
+  .month-btn:active { background: var(--surface3); }
+  .month-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 88px;
+    text-align: center;
+  }
+
+  /* ── CLIENT DETAIL ── */
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+
+  /* ── REPORTS ── */
+  .report-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .report-row:last-child { border-bottom: none; }
+  .report-label { font-size: 14px; color: var(--text2); }
+  .report-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .report-value.green { color: var(--green); }
+  .report-value.red { color: var(--red); }
+  .report-value.yellow { color: var(--accent); }
+  .report-value.blue { color: var(--blue); }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center;
+    color: var(--text3);
+    padding: 48px 20px;
+    font-size: 14px;
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
+
+  /* ── SEARCH ── */
+  .search-wrap { position: relative; margin-bottom: 12px; }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text3); pointer-events: none; }
+  .search-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 11px 14px 11px 36px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  .search-input:focus { border-color: rgba(232,184,75,0.4); }
+  .search-input::placeholder { color: var(--text3); }
+
+  /* ── STATUS SPACE ── */
+  .status-space { height: env(safe-area-inset-top, 0px); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .page.active > * { animation: fadeUp 0.25s ease both; }
+  .page.active > *:nth-child(2) { animation-delay: 0.04s; }
+  .page.active > *:nth-child(3) { animation-delay: 0.08s; }
+  .page.active > *:nth-child(4) { animation-delay: 0.12s; }
+
+  /* ── MONO NUMBERS ── */
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  /* ── WEALTH PHASE BANNER ── */
+  .phase-banner {
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .phase-survival { background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.15); color: var(--red); }
+  .phase-build { background: rgba(232,184,75,0.08); border: 1px solid rgba(232,184,75,0.15); color: var(--accent); }
+  .phase-optimal { background: rgba(61,214,140,0.08); border: 1px solid rgba(61,214,140,0.15); color: var(--green); }
+
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="status-space"></div>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title">CoachFlow</div>
+        <div class="page-sub" id="dash-month-label">May 2026</div>
+      </div>
+      <div class="month-switcher">
+        <button class="month-btn" onclick="changeMonth(-1)">‹</button>
+        <button class="month-btn" onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+
+    <div class="hero-card">
+      <div class="hero-label">Net Cashflow · <span id="dash-month-label2"></span></div>
+      <div class="hero-value" id="dash-net">RM 0</div>
+      <div class="hero-sub">Cash collected minus expenses</div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card green-accent">
+        <div class="stat-label">Collected</div>
+        <div class="stat-value green mono" id="dash-collected">RM 0</div>
+      </div>
+      <div class="stat-card yellow-accent">
+        <div class="stat-label">Earned</div>
+        <div class="stat-value yellow mono" id="dash-earned">RM 0</div>
+      </div>
+      <div class="stat-card red-accent">
+        <div class="stat-label">Expenses</div>
+        <div class="stat-value red mono" id="dash-expenses">RM 0</div>
+      </div>
+      <div class="stat-card green-accent">
+        <div class="stat-label">Projected</div>
+        <div class="stat-value green mono" id="dash-projected">RM 0</div>
+      </div>
+      <div class="stat-card wide blue-accent">
+        <div>
+          <div class="stat-label">Sessions Done</div>
+          <div class="stat-value blue mono" id="dash-sessions">0</div>
+        </div>
+        <div style="text-align:right">
+          <div class="stat-label">Prepaid Owed</div>
+          <div class="stat-value yellow mono" id="dash-owed">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Recent Activity</div>
+    <div id="dash-recent"></div>
+  </div>
+
+  <!-- CLIENTS -->
+  <div class="page" id="page-clients">
+    <div class="page-header">
+      <div class="page-title">Clients</div>
+      <button class="btn btn-primary btn-sm" style="width:auto;padding:8px 16px" onclick="openAddClient()">+ Add</button>
+    </div>
+    <div class="search-wrap"><span class="search-icon">🔍</span><input type="search" class="search-input" placeholder="Search clients…" id="client-search" oninput="renderClients()"></div>
+    <div id="client-list"></div>
+  </div>
+
+  <!-- QUICK LOG -->
+  <div class="page" id="page-quicklog">
+    <div class="page-header">
+      <div class="page-title">Quick Log</div>
+    </div>
+    <div class="section-label">Select Client</div>
+    <div class="search-wrap"><span class="search-icon">🔍</span><input type="search" class="search-input" placeholder="Search…" id="ql-search" oninput="renderQLClients()"></div>
+    <div class="ql-client-grid" id="ql-client-grid"></div>
+    <div id="ql-actions" style="display:none">
+      <div class="divider"></div>
+      <div class="client-pill" style="margin-bottom:12px"><div class="client-pill-dot"></div><div><div class="client-pill-name" id="ql-selected-name">—</div><div style="font-size:12px;color:rgba(232,184,75,0.6);margin-top:2px" id="ql-selected-info">—</div></div></div>
+      <button class="btn btn-primary" style="margin-bottom:10px;font-size:17px;padding:20px;border-radius:16px;letter-spacing:-0.3px" onclick="qlLogSession()">✓ &nbsp;Session Completed</button>
+      <div class="action-row">
+        <button class="btn btn-green btn-sm" onclick="openQLPayment()">+ Payment</button>
+        <button class="btn btn-secondary btn-sm" onclick="openQLPackage()">+ Package</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPENSES -->
+  <div class="page" id="page-expenses">
+    <div class="page-header">
+      <div class="page-title">Expenses</div>
+      <button class="btn btn-primary btn-sm" style="width:auto;padding:8px 16px" onclick="openAddExpense()">+ Add</button>
+    </div>
+    <div class="stat-grid" style="margin-bottom:12px">
+      <div class="stat-card wide red-accent">
+        <div>
+          <div class="stat-label">Total Expenses This Month</div>
+          <div class="stat-value red mono" id="exp-total">RM 0</div>
+        </div>
+      </div>
+    </div>
+    <div id="expense-list"></div>
+  </div>
+
+  <!-- REPORTS -->
+  <div class="page" id="page-reports">
+    <div class="page-header">
+      <div class="page-title">Reports</div>
+      <div class="month-switcher">
+        <button class="month-btn" onclick="changeMonth(-1)">‹</button>
+        <span class="month-label" id="report-month-label">May 2026</span>
+        <button class="month-btn" onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="report-row">
+        <span class="report-label">Cash Collected</span>
+        <span class="report-value mono green" id="rep-collected">RM 0</span>
+      </div>
+      <div class="report-row">
+        <span class="report-label">Earned Revenue</span>
+        <span class="report-value mono yellow" id="rep-earned">RM 0</span>
+      </div>
+      <div class="report-row">
+        <span class="report-label">Expenses</span>
+        <span class="report-value mono red" id="rep-expenses">RM 0</span>
+      </div>
+      <div class="report-row">
+        <span class="report-label">Net Cashflow</span>
+        <span class="report-value" id="rep-net">RM 0</span>
+      </div>
+      <div class="report-row">
+        <span class="report-label">Sessions Completed</span>
+        <span class="report-value mono blue" id="rep-sessions">0</span>
+      </div>
+      <div class="report-row">
+        <span class="report-label">Sessions Owed (prepaid)</span>
+        <span class="report-value mono yellow" id="rep-owed">0</span>
+      </div>
+    </div>
+    <div class="section-label">Top Clients by Revenue</div>
+    <div id="rep-top-clients"></div>
+  </div>
+
+  <!-- WEALTH -->
+  <div class="page" id="page-wealth">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Wealth</div>
+        <div class="page-sub">Net worth & allocations</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:auto;padding:8px 14px" onclick="openWealthSettings()">Edit</button>
+    </div>
+
+    <!-- Phase badge -->
+    <div id="wealth-phase-banner" style="margin-bottom:12px"></div>
+
+    <!-- Net Worth Hero -->
+    <div class="hero-card" style="background:linear-gradient(135deg,#0a0e1a 0%,#0d1117 60%,#080808 100%);border-color:rgba(91,156,246,0.2)">
+      <div style="position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:radial-gradient(circle,rgba(91,156,246,0.1) 0%,transparent 70%);pointer-events:none"></div>
+      <div class="hero-label" style="color:rgba(91,156,246,0.7)">Total Net Worth</div>
+      <div class="hero-value" id="wealth-total" style="color:var(--blue)">RM 0</div>
+      <div class="hero-sub" id="wealth-breakdown">Savings + Investments + Cash</div>
+    </div>
+
+    <!-- Goal progress -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div>
+          <div class="stat-label">Year-End Goal</div>
+          <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--text)" id="wealth-goal-label">RM 100,000</div>
+        </div>
+        <div style="text-align:right">
+          <div class="stat-label">Deadline</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text2)">31 Dec 2026</div>
+        </div>
+      </div>
+      <!-- Progress bar -->
+      <div style="background:var(--surface2);border-radius:99px;height:8px;overflow:hidden;margin-bottom:8px">
+        <div id="wealth-progress-bar" style="height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--accent));transition:width 0.6s cubic-bezier(0.34,1.2,0.64,1);width:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <div style="font-size:12px;color:var(--text2)" id="wealth-progress-pct">0% there</div>
+        <div style="font-size:12px;color:var(--text2)" id="wealth-goal-gap">RM 0 to go</div>
+      </div>
+      <!-- Monthly target to hit goal -->
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:13px;color:var(--text2)">Need to save/month</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:var(--accent)" id="wealth-monthly-needed">RM 0</div>
+      </div>
+    </div>
+
+    <!-- Net Worth breakdown -->
+    <div class="stat-grid" style="margin-bottom:12px">
+      <div class="stat-card blue-accent">
+        <div class="stat-label">Savings</div>
+        <div class="stat-value blue mono" id="wealth-savings">RM 0</div>
+      </div>
+      <div class="stat-card yellow-accent">
+        <div class="stat-label">Investments</div>
+        <div class="stat-value yellow mono" id="wealth-investments">RM 0</div>
+      </div>
+      <div class="stat-card green-accent">
+        <div class="stat-label">Cash on Hand</div>
+        <div class="stat-value green mono" id="wealth-cash">RM 0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Last Updated</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2);margin-top:4px" id="wealth-updated">Never</div>
+      </div>
+    </div>
+
+    <!-- Monthly Allocations -->
+    <div class="section-label">Monthly Allocations</div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Set your non-negotiable splits. The rest goes to business.</div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--accent)"></div>
+          <span style="font-size:14px;font-weight:600">Invest</span>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--accent)" id="alloc-invest-display">RM 0</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--blue)"></div>
+          <span style="font-size:14px;font-weight:600">Save</span>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--blue)" id="alloc-save-display">RM 0</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--green)"></div>
+          <span style="font-size:14px;font-weight:600">Business</span>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--green)" id="alloc-biz-display">RM 0</div>
+      </div>
+
+      <!-- Allocation bar -->
+      <div style="background:var(--surface2);border-radius:99px;height:10px;overflow:hidden;display:flex;gap:2px;margin-bottom:10px">
+        <div id="alloc-bar-invest" style="height:100%;background:var(--accent);border-radius:99px 0 0 99px;transition:width 0.4s;width:0%"></div>
+        <div id="alloc-bar-save" style="height:100%;background:var(--blue);transition:width 0.4s;width:0%"></div>
+        <div id="alloc-bar-biz" style="height:100%;background:var(--green);border-radius:0 99px 99px 0;transition:width 0.4s;width:0%"></div>
+      </div>
+
+      <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;color:var(--text2)">Based on this month's cashflow</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text2)" id="alloc-cashflow-ref">RM 0</span>
+      </div>
+    </div>
+
+    <div style="height:8px"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" id="tab-dashboard" onclick="switchTab('dashboard')">
+      <div class="tab-icon-wrap">📊</div>
+      <div class="tab-label">Home</div>
+    </div>
+    <div class="tab" id="tab-clients" onclick="switchTab('clients')">
+      <div class="tab-icon-wrap">👥</div>
+      <div class="tab-label">Clients</div>
+    </div>
+    <div class="tab-ql" onclick="switchTab('quicklog')">
+      <div class="tab-ql-btn" id="tab-ql-btn">⚡</div>
+      <div class="tab-ql-label">Log</div>
+    </div>
+    <div class="tab" id="tab-expenses" onclick="switchTab('expenses')">
+      <div class="tab-icon-wrap">💸</div>
+      <div class="tab-label">Expenses</div>
+    </div>
+    <div class="tab" id="tab-wealth" onclick="switchTab('wealth')">
+      <div class="tab-icon-wrap">💰</div>
+      <div class="tab-label">Wealth</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<!-- Add Client Modal -->
+<div class="modal-overlay" id="modal-addclient">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-addclient-title">Add Client</div>
+    <div class="input-group">
+      <label class="input-label">Name</label>
+      <input class="input" id="ac-name" placeholder="Client name" type="text">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Price per Session (RM)</label>
+      <input class="input" id="ac-price" placeholder="e.g. 150" type="number" inputmode="decimal">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Sessions per Week</label>
+      <input class="input" id="ac-spw" placeholder="e.g. 2" type="number" inputmode="numeric" min="1" max="7">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Payment Type</label>
+      <select class="input" id="ac-type">
+        <option value="per_session">Per Session</option>
+        <option value="package">Package</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Notes</label>
+      <textarea class="input" id="ac-notes" placeholder="Optional notes…"></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="saveClient()">Save Client</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-addclient')">Cancel</button>
+  </div>
+</div>
+
+<!-- Client Detail Modal -->
+<div class="modal-overlay" id="modal-client-detail">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="cd-name">Client</div>
+    <div class="card-sm" style="margin-bottom:16px">
+      <div class="stat-grid" style="margin-bottom:0;gap:8px">
+        <div>
+          <div class="stat-label">Sessions Left</div>
+          <div class="stat-value yellow" id="cd-sessions-left">0</div>
+        </div>
+        <div>
+          <div class="stat-label">Completed</div>
+          <div class="stat-value blue" id="cd-sessions-done">0</div>
+        </div>
+        <div>
+          <div class="stat-label">Collected (mo)</div>
+          <div class="stat-value green" id="cd-collected">RM 0</div>
+        </div>
+        <div>
+          <div class="stat-label">Earned (mo)</div>
+          <div class="stat-value yellow" id="cd-earned">RM 0</div>
+        </div>
+      </div>
+    </div>
+    <div class="action-grid">
+      <button class="btn btn-primary" onclick="cdLogSession()">✓ Session Done</button>
+      <button class="btn btn-green" onclick="cdAddPayment()">+ Payment</button>
+      <button class="btn btn-secondary" onclick="cdAddPackage()">+ Package</button>
+      <button class="btn btn-ghost" onclick="cdEditClient()">Edit</button>
+    </div>
+    <div class="divider"></div>
+    <div class="section-label">Recent Sessions</div>
+    <div id="cd-recent-sessions"></div>
+    <div class="divider"></div>
+    <button class="btn btn-danger" style="margin-top:4px" onclick="cdArchiveClient()">Archive Client</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-client-detail')">Close</button>
+  </div>
+</div>
+
+<!-- Add Payment Modal -->
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Payment</div>
+    <div class="client-pill"><div class="client-pill-dot"></div><div class="client-pill-name" id="pay-client-name">—</div></div>
+    <div class="input-group">
+      <label class="input-label">Amount (RM)</label>
+      <input class="input" id="pay-amount" type="number" inputmode="decimal" placeholder="0.00">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Payment Type</label>
+      <select class="input" id="pay-type" onchange="togglePackageSessions()">
+        <option value="per_session">Per Session</option>
+        <option value="package">Package</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+      </select>
+    </div>
+    <div class="input-group" id="pay-sessions-group" style="display:none">
+      <label class="input-label">Sessions in Package</label>
+      <input class="input" id="pay-sessions" type="number" inputmode="numeric" placeholder="e.g. 10">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Date</label>
+      <input class="input" id="pay-date" type="date">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Notes</label>
+      <input class="input" id="pay-notes" type="text" placeholder="Optional…">
+    </div>
+    <button class="btn btn-primary" onclick="savePayment()">Save Payment</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-payment')">Cancel</button>
+  </div>
+</div>
+
+<!-- Add Package Modal -->
+<div class="modal-overlay" id="modal-package">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Package</div>
+    <div class="client-pill"><div class="client-pill-dot"></div><div class="client-pill-name" id="pkg-client-name">—</div></div>
+    <div class="input-group">
+      <label class="input-label">Sessions in Package</label>
+      <input class="input" id="pkg-sessions" type="number" inputmode="numeric" placeholder="e.g. 10">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Amount Paid (RM)</label>
+      <input class="input" id="pkg-amount" type="number" inputmode="decimal" placeholder="0.00">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Date</label>
+      <input class="input" id="pkg-date" type="date">
+    </div>
+    <button class="btn btn-primary" onclick="savePackage()">Save Package</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-package')">Cancel</button>
+  </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div class="modal-overlay" id="modal-expense">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Expense</div>
+    <div class="input-group">
+      <label class="input-label">Amount (RM)</label>
+      <input class="input" id="exp-amount" type="number" inputmode="decimal" placeholder="0.00">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Category</label>
+      <select class="input" id="exp-cat">
+        <option value="Studio/Rent">Studio / Rent</option>
+        <option value="Fuel/Transport">Fuel / Transport</option>
+        <option value="Equipment">Equipment</option>
+        <option value="Ads/Marketing">Ads / Marketing</option>
+        <option value="Food/Personal">Food / Personal</option>
+        <option value="Subscriptions">Subscriptions</option>
+        <option value="Miscellaneous">Miscellaneous</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Date</label>
+      <input class="input" id="exp-date" type="date">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Notes</label>
+      <input class="input" id="exp-notes" type="text" placeholder="Optional…">
+    </div>
+    <button class="btn btn-primary" onclick="saveExpense()">Save Expense</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-expense')">Cancel</button>
+  </div>
+</div>
+
+<!-- Wealth Settings Modal -->
+<div class="modal-overlay" id="modal-wealth-settings">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Update Net Worth</div>
+
+    <div style="background:var(--accent-dim);border:1px solid rgba(232,184,75,0.15);border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--text2);line-height:1.5">
+      Update these whenever you check your accounts. No auto-sync — just your honest numbers.
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Savings Account (RM)</label>
+      <input class="input" id="ws-savings" type="number" inputmode="decimal" placeholder="e.g. 25000">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Investments — VOO / CSPX / Stocks (RM)</label>
+      <input class="input" id="ws-investments" type="number" inputmode="decimal" placeholder="e.g. 20000">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Cash on Hand (RM)</label>
+      <input class="input" id="ws-cash" type="number" inputmode="decimal" placeholder="e.g. 5000">
+    </div>
+
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px">Monthly Allocations</div>
+
+    <div class="input-group">
+      <label class="input-label">Invest per Month (non-negotiable, RM)</label>
+      <input class="input" id="ws-alloc-invest" type="number" inputmode="decimal" placeholder="e.g. 2000">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Save per Month (high-yield account, RM)</label>
+      <input class="input" id="ws-alloc-save" type="number" inputmode="decimal" placeholder="e.g. 1000">
+    </div>
+    <div style="background:var(--surface2);border-radius:10px;padding:11px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:var(--text2)">Business reinvestment (remainder)</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--green)" id="ws-biz-preview">RM —</span>
+    </div>
+
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px">Goal & Phase</div>
+
+    <div class="input-group">
+      <label class="input-label">Year-End Net Worth Goal (RM)</label>
+      <input class="input" id="ws-goal" type="number" inputmode="decimal" placeholder="e.g. 100000">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Current Phase</label>
+      <select class="input" id="ws-phase">
+        <option value="survival">🔴 Survival — Breaking even, covering costs</option>
+        <option value="build">🟡 Build — Growing income, ramping allocations</option>
+        <option value="optimal">🟢 Optimal — Full allocations, scaling wealth</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary" onclick="saveWealthSettings()">Save</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-wealth-settings')">Cancel</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ====================== STATE ======================
+const SEED_CLIENTS = [
+  {name:'Alex', price:75, sessionsPerWeek:3, type:'weekly'},
+  {name:'Alex Mom', price:75, sessionsPerWeek:3, type:'weekly'},
+  {name:'Alex Dad', price:75, sessionsPerWeek:3, type:'weekly'},
+  {name:'Jose', price:75, sessionsPerWeek:3, type:'weekly'},
+  {name:'Kaka', price:75, sessionsPerWeek:2, type:'weekly'},
+  {name:'Carlos', price:100, sessionsPerWeek:1, type:'weekly'},
+  {name:'Choong', price:120, sessionsPerWeek:3, type:'weekly'},
+  {name:'Sharon', price:100, sessionsPerWeek:1, type:'weekly'},
+  {name:'Lim', price:100, sessionsPerWeek:1, type:'weekly'},
+  {name:'Gina', price:80, sessionsPerWeek:2, type:'weekly'},
+  {name:'Robyne', price:90, sessionsPerWeek:3, type:'weekly'},
+  {name:'James', price:95, sessionsPerWeek:3, type:'weekly'},
+  {name:'Jeremy', price:90, sessionsPerWeek:2, type:'weekly'},
+  {name:'Alexander', price:80, sessionsPerWeek:2, type:'weekly'},
+  {name:'Moo Kit', price:100, sessionsPerWeek:1, type:'weekly'},
+  {name:'Penny', price:95, sessionsPerWeek:2, type:'weekly'},
+  {name:'Kaze & Friend', price:140, sessionsPerWeek:2, type:'weekly'},
+  {name:'Kenji', price:95, sessionsPerWeek:2, type:'weekly'},
+  {name:'Kavitha', price:95, sessionsPerWeek:2, type:'weekly'},
+  {name:'Gaojie & Cmone', price:120, sessionsPerWeek:1, type:'weekly'},
+  {name:'Jia Kai', price:95, sessionsPerWeek:1, type:'weekly'},
+  {name:'Client 22', price:95, sessionsPerWeek:1, type:'weekly'},
+  {name:'Client 23', price:95, sessionsPerWeek:1, type:'weekly'},
+];
+
+function loadData() {
+  return JSON.parse(localStorage.getItem('coachflow_data') || 'null');
+}
+function saveData(data) {
+  localStorage.setItem('coachflow_data', JSON.stringify(data));
+}
+
+let db;
+const DB_VERSION = 3;
+function initDB() {
+  db = loadData();
+  // Re-seed if version mismatch (fixes stale prices)
+  if (!db || db.version !== DB_VERSION) {
+    const existing = db;
+    db = { version: DB_VERSION, clients: [], sessions: existing ? existing.sessions||[] : [], payments: existing ? existing.payments||[] : [], expenses: existing ? existing.expenses||[] : [], nextId: existing ? existing.nextId||1 : 1 };
+    SEED_CLIENTS.forEach(c => {
+      db.clients.push({
+        id: db.nextId++,
+        name: c.name,
+        price: c.price,
+        sessionsPerWeek: c.sessionsPerWeek || 1,
+        type: c.type,
+        sessionsRemaining: 0,
+        notes: '',
+        archived: false,
+        createdAt: new Date().toISOString()
+      });
+    });
+    saveData(db);
+  }
+}
+
+function uid() { return db.nextId++; }
+function today() { return new Date().toISOString().split('T')[0]; }
+function monthKey(date) { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function fmt(n) { return 'RM ' + Number(n).toLocaleString('en-MY', {minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtDate(s) { const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-MY',{day:'numeric',month:'short'}); }
+
+// ====================== MONTH ======================
+let currentMonth = monthKey(new Date());
+function changeMonth(dir) {
+  const [y,m] = currentMonth.split('-').map(Number);
+  const d = new Date(y, m-1+dir, 1);
+  currentMonth = monthKey(d);
+  renderAll();
+}
+function monthLabel(key) {
+  const [y,m] = key.split('-').map(Number);
+  return new Date(y,m-1,1).toLocaleDateString('en-MY',{month:'long',year:'numeric'});
+}
+
+// ====================== TABS ======================
+let currentTab = 'dashboard';
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  const tabEl = document.getElementById('tab-'+tab);
+  if (tabEl) tabEl.classList.add('active');
+  currentTab = tab;
+  if (tab === 'quicklog') { renderQLClients(); qlSelectedId = null; document.getElementById('ql-actions').style.display='none'; }
+  if (tab === 'clients') renderClients();
+  if (tab === 'expenses') renderExpenses();
+  if (tab === 'reports') renderReports();
+  if (tab === 'dashboard') renderDashboard();
+  if (tab === 'wealth') renderWealth();
+}
+
+// ====================== TOAST ======================
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' '+type : '');
+  setTimeout(() => t.className='toast', 2200);
+}
+
+// ====================== MODAL ======================
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });
+});
+
+// ====================== DASHBOARD ======================
+function renderDashboard() {
+  const mk = currentMonth;
+  document.getElementById('dash-month-label').textContent = monthLabel(mk);
+  const ml2 = document.getElementById('dash-month-label2'); if(ml2) ml2.textContent = monthLabel(mk);
+
+  // Cash collected this month
+  const collected = db.payments.filter(p => monthKey(p.date)===mk).reduce((s,p)=>s+p.amount, 0);
+  // Earned revenue this month = sessions completed × client price
+  const sessionsThisMonth = db.sessions.filter(s => monthKey(s.date)===mk && !s.archived);
+  const earned = sessionsThisMonth.reduce((s,sess) => {
+    const c = db.clients.find(c=>c.id===sess.clientId);
+    return s + (c ? (sess.price||c.price) : 0);
+  }, 0);
+  const expenses = db.expenses.filter(e => monthKey(e.date)===mk).reduce((s,e)=>s+e.amount, 0);
+  const net = collected - expenses;
+  const sessionCount = sessionsThisMonth.length;
+
+  // prepaid owed = all active clients sessionsRemaining
+  const owed = db.clients.filter(c=>!c.archived).reduce((s,c)=>s+Math.max(0,c.sessionsRemaining),0);
+
+  // weekly earned = earned / weeks in month so far (or 1)
+  const now = new Date();
+  const [y,m] = mk.split('-').map(Number);
+  const isCurrentMonth = now.getFullYear()===y && now.getMonth()+1===m;
+  const weeksPassed = isCurrentMonth ? Math.max(1, (now.getDate()/7)) : 4.33;
+  const weeklyEarned = earned / weeksPassed;
+  const projected = weeklyEarned * 4.33;
+
+  const dcEl = document.getElementById('dash-collected'); if(dcEl) dcEl.textContent = fmt(collected);
+  const deEl = document.getElementById('dash-earned'); if(deEl) deEl.textContent = fmt(earned);
+  const dxEl = document.getElementById('dash-expenses'); if(dxEl) dxEl.textContent = fmt(expenses);
+  const netEl = document.getElementById('dash-net');
+  netEl.textContent = fmt(net);
+  netEl.className = 'hero-value ' + (net>=0?'':'') + (net<0?'red':'');
+  netEl.style.color = net>=0 ? 'var(--accent)' : 'var(--red)';
+  const dsEl = document.getElementById('dash-sessions'); if(dsEl) dsEl.textContent = sessionCount;
+  const doEl = document.getElementById('dash-owed'); if(doEl) doEl.textContent = owed;
+  const dpEl = document.getElementById('dash-projected'); if(dpEl) dpEl.textContent = fmt(projected);
+
+  // Recent activity
+  const recent = [];
+  db.sessions.filter(s=>monthKey(s.date)===mk).forEach(s => {
+    const c = db.clients.find(c=>c.id===s.clientId);
+    recent.push({type:'session', date:s.date, label:`Session – ${c?c.name:'?'}`, value:fmt(s.price||c?.price||0), color:'blue'});
+  });
+  db.payments.filter(p=>monthKey(p.date)===mk).forEach(p => {
+    const c = db.clients.find(c=>c.id===p.clientId);
+    recent.push({type:'payment', date:p.date, label:`Payment – ${c?c.name:'?'}`, value:'+'+fmt(p.amount), color:'green'});
+  });
+  recent.sort((a,b)=>b.date.localeCompare(a.date));
+
+  const el = document.getElementById('dash-recent');
+  if (!recent.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No activity this month</div>'; return; }
+  el.innerHTML = recent.slice(0,10).map(r=>`
+    <div class="expense-item">
+      <div class="expense-left">
+        <div class="expense-cat">${r.type==='session'?'Session':'Payment'}</div>
+        <div style="font-size:14px;font-weight:500">${r.label}</div>
+      </div>
+      <div>
+        <div class="expense-amount" style="color:var(--${r.color})">${r.value}</div>
+        <div class="expense-date">${fmtDate(r.date)}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ====================== CLIENTS ======================
+function renderClients() {
+  const q = (document.getElementById('client-search')?.value||'').toLowerCase();
+  const active = db.clients.filter(c => !c.archived && c.name.toLowerCase().includes(q));
+  const el = document.getElementById('client-list');
+  if (!active.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">👥</div>No clients yet</div>'; return; }
+  el.innerHTML = active.map(c => {
+    const earned = db.sessions.filter(s=>s.clientId===c.id && monthKey(s.date)===currentMonth).reduce((s,sess)=>s+(sess.price||c.price),0);
+    const badge = c.sessionsRemaining > 3 ? 'badge-ok' : c.sessionsRemaining > 0 ? 'badge-low' : 'badge-zero';
+    const badgeTxt = c.sessionsRemaining > 0 ? c.sessionsRemaining+' left' : 'Pay-as-you-go';
+    const initials = c.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    return `<div class="client-item" onclick="openClientDetail(${c.id})"><div class="client-avatar">${initials}</div>
+      <div class="client-info">
+        <div class="client-name">${c.name}</div>
+        <div class="client-meta">${fmt(c.price)}/session · ${c.sessionsPerWeek||1}x/wk · ${fmt(c.price*(c.sessionsPerWeek||1))}/wk</div>
+      </div>
+      <div class="client-right">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:4px">${fmt(earned)} earned</div>
+        <div class="sessions-badge ${badge}">${badgeTxt}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ====================== ADD CLIENT ======================
+let editingClientId = null;
+function openAddClient() {
+  editingClientId = null;
+  document.getElementById('modal-addclient-title').textContent = 'Add Client';
+  document.getElementById('ac-name').value = '';
+  document.getElementById('ac-price').value = '';
+  document.getElementById('ac-type').value = 'per_session';
+  document.getElementById('ac-spw').value = '1';
+  document.getElementById('ac-notes').value = '';
+  openModal('modal-addclient');
+}
+function saveClient() {
+  const name = document.getElementById('ac-name').value.trim();
+  const price = parseFloat(document.getElementById('ac-price').value) || 0;
+  const spw = parseInt(document.getElementById('ac-spw').value) || 1;
+  if (!name) { toast('Enter a name'); return; }
+  if (editingClientId) {
+    const c = db.clients.find(c=>c.id===editingClientId);
+    c.name = name; c.price = price; c.sessionsPerWeek = spw;
+    c.type = document.getElementById('ac-type').value;
+    c.notes = document.getElementById('ac-notes').value.trim();
+    toast('Client updated');
+  } else {
+    db.clients.push({ id: uid(), name, price, sessionsPerWeek: spw, type: document.getElementById('ac-type').value, sessionsRemaining: 0, notes: document.getElementById('ac-notes').value.trim(), archived: false, createdAt: new Date().toISOString() });
+    toast('Client added', 'success');
+  }
+  saveData(db); closeModal('modal-addclient'); renderClients(); renderDashboard();
+}
+
+// ====================== CLIENT DETAIL ======================
+let detailClientId = null;
+function openClientDetail(id) {
+  detailClientId = id;
+  const c = db.clients.find(c=>c.id===id);
+  document.getElementById('cd-name').textContent = c.name;
+  document.getElementById('cd-sessions-left').textContent = Math.max(0,c.sessionsRemaining);
+  const done = db.sessions.filter(s=>s.clientId===id).length;
+  document.getElementById('cd-sessions-done').textContent = done;
+  const mk = currentMonth;
+  const collected = db.payments.filter(p=>p.clientId===id && monthKey(p.date)===mk).reduce((s,p)=>s+p.amount,0);
+  const earned = db.sessions.filter(s=>s.clientId===id && monthKey(s.date)===mk).reduce((s,sess)=>s+(sess.price||c.price),0);
+  document.getElementById('cd-collected').textContent = fmt(collected);
+  document.getElementById('cd-earned').textContent = fmt(earned);
+  const recentSessions = db.sessions.filter(s=>s.clientId===id).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  document.getElementById('cd-recent-sessions').innerHTML = recentSessions.length ? recentSessions.map(s=>`
+    <div class="card-sm" style="margin-bottom:6px;display:flex;justify-content:space-between">
+      <span style="font-size:13px;color:var(--text2)">${fmtDate(s.date)}</span>
+      <span style="font-size:13px;font-weight:600;color:var(--accent)">${fmt(s.price||c.price)}</span>
+    </div>`).join('') : '<div style="color:var(--text3);font-size:13px">No sessions yet</div>';
+  openModal('modal-client-detail');
+}
+function cdLogSession() {
+  logSession(detailClientId);
+  openClientDetail(detailClientId);
+}
+function cdAddPayment() { closeModal('modal-client-detail'); openPaymentModal(detailClientId); }
+function cdAddPackage() { closeModal('modal-client-detail'); openPackageModal(detailClientId); }
+function cdEditClient() {
+  const c = db.clients.find(c=>c.id===detailClientId);
+  editingClientId = detailClientId;
+  document.getElementById('modal-addclient-title').textContent = 'Edit Client';
+  document.getElementById('ac-name').value = c.name;
+  document.getElementById('ac-price').value = c.price;
+  document.getElementById('ac-spw').value = c.sessionsPerWeek||1;
+  document.getElementById('ac-type').value = c.type;
+  document.getElementById('ac-notes').value = c.notes||'';
+  closeModal('modal-client-detail');
+  openModal('modal-addclient');
+}
+function cdArchiveClient() {
+  if (!confirm('Archive this client?')) return;
+  const c = db.clients.find(c=>c.id===detailClientId);
+  c.archived = true;
+  saveData(db); closeModal('modal-client-detail'); renderClients(); toast('Client archived');
+}
+
+// ====================== LOG SESSION ======================
+function logSession(clientId) {
+  const c = db.clients.find(c=>c.id===clientId);
+  if (!c) return;
+  db.sessions.push({ id: uid(), clientId, price: c.price, date: today() });
+  if (c.sessionsRemaining > 0) c.sessionsRemaining--;
+  saveData(db); renderAll();
+  toast('✓ Session logged', 'success');
+}
+
+// ====================== QUICK LOG ======================
+let qlSelectedId = null;
+function renderQLClients() {
+  const q = (document.getElementById('ql-search')?.value||'').toLowerCase();
+  const active = db.clients.filter(c=>!c.archived && c.name.toLowerCase().includes(q));
+  const grid = document.getElementById('ql-client-grid');
+  grid.innerHTML = active.map(c=>`
+    <div class="ql-client-btn ${qlSelectedId===c.id?'selected':''}" onclick="qlSelectClient(${c.id})">
+      <div class="ql-client-name">${c.name}</div>
+      <div class="ql-client-sessions">${c.sessionsRemaining>0?c.sessionsRemaining+' sessions left':'Pay-as-you-go'}</div>
+    </div>`).join('');
+}
+function qlSelectClient(id) {
+  qlSelectedId = id;
+  const c = db.clients.find(c=>c.id===id);
+  document.getElementById('ql-selected-name').textContent = c.name;
+  document.getElementById('ql-selected-info').textContent = `${fmt(c.price)}/session · ${c.sessionsRemaining>0?c.sessionsRemaining+' remaining':'Pay-as-you-go'}`;
+  document.getElementById('ql-actions').style.display = 'block';
+  renderQLClients();
+}
+function qlLogSession() {
+  if (!qlSelectedId) return;
+  logSession(qlSelectedId);
+  const c = db.clients.find(c=>c.id===qlSelectedId);
+  document.getElementById('ql-selected-info').textContent = `${fmt(c.price)}/session · ${c.sessionsRemaining>0?c.sessionsRemaining+' remaining':'Pay-as-you-go'}`;
+  renderQLClients();
+}
+function openQLPayment() {
+  if (!qlSelectedId) return;
+  openPaymentModal(qlSelectedId);
+}
+function openQLPackage() {
+  if (!qlSelectedId) return;
+  openPackageModal(qlSelectedId);
+}
+
+// ====================== PAYMENT ======================
+let paymentForClientId = null;
+function openPaymentModal(clientId) {
+  paymentForClientId = clientId;
+  const c = db.clients.find(c=>c.id===clientId);
+  document.getElementById('pay-client-name').textContent = c.name;
+  document.getElementById('pay-amount').value = '';
+  document.getElementById('pay-type').value = c.type;
+  document.getElementById('pay-date').value = today();
+  document.getElementById('pay-notes').value = '';
+  document.getElementById('pay-sessions').value = '';
+  togglePackageSessions();
+  openModal('modal-payment');
+}
+function togglePackageSessions() {
+  const t = document.getElementById('pay-type').value;
+  document.getElementById('pay-sessions-group').style.display = t==='package'?'block':'none';
+}
+function savePayment() {
+  const amount = parseFloat(document.getElementById('pay-amount').value)||0;
+  if (!amount) { toast('Enter an amount'); return; }
+  const type = document.getElementById('pay-type').value;
+  const sessions = parseInt(document.getElementById('pay-sessions').value)||0;
+  const date = document.getElementById('pay-date').value || today();
+  const notes = document.getElementById('pay-notes').value.trim();
+  db.payments.push({ id: uid(), clientId: paymentForClientId, amount, type, sessions, date, notes });
+  if (type==='package' && sessions>0) {
+    const c = db.clients.find(c=>c.id===paymentForClientId);
+    c.sessionsRemaining += sessions;
+  } else if (type==='per_session') {
+    const c = db.clients.find(c=>c.id===paymentForClientId);
+    c.sessionsRemaining += 1;
+  }
+  saveData(db); closeModal('modal-payment'); renderAll();
+  toast('Payment saved', 'success');
+}
+
+// ====================== PACKAGE ======================
+let packageForClientId = null;
+function openPackageModal(clientId) {
+  packageForClientId = clientId;
+  const c = db.clients.find(c=>c.id===clientId);
+  document.getElementById('pkg-client-name').textContent = c.name;
+  document.getElementById('pkg-sessions').value = '';
+  document.getElementById('pkg-amount').value = '';
+  document.getElementById('pkg-date').value = today();
+  openModal('modal-package');
+}
+function savePackage() {
+  const sessions = parseInt(document.getElementById('pkg-sessions').value)||0;
+  const amount = parseFloat(document.getElementById('pkg-amount').value)||0;
+  const date = document.getElementById('pkg-date').value || today();
+  if (!sessions || !amount) { toast('Fill in all fields'); return; }
+  db.payments.push({ id: uid(), clientId: packageForClientId, amount, type:'package', sessions, date, notes:'Package' });
+  const c = db.clients.find(c=>c.id===packageForClientId);
+  c.sessionsRemaining += sessions;
+  saveData(db); closeModal('modal-package'); renderAll();
+  toast(`Package: ${sessions} sessions added`, 'success');
+}
+
+// ====================== EXPENSES ======================
+function renderExpenses() {
+  const mk = currentMonth;
+  const expList = db.expenses.filter(e=>monthKey(e.date)===mk).sort((a,b)=>b.date.localeCompare(a.date));
+  const total = expList.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('exp-total').textContent = fmt(total);
+  const el = document.getElementById('expense-list');
+  if (!expList.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">💸</div>No expenses this month</div>'; return; }
+  el.innerHTML = expList.map(e=>`
+    <div class="expense-item">
+      <div class="expense-left">
+        <div class="expense-cat">${e.category}</div>
+        ${e.notes?`<div class="expense-notes">${e.notes}</div>`:''}
+      </div>
+      <div>
+        <div class="expense-amount">${fmt(e.amount)}</div>
+        <div class="expense-date">${fmtDate(e.date)}</div>
+      </div>
+    </div>`).join('');
+}
+function openAddExpense() {
+  document.getElementById('exp-amount').value = '';
+  document.getElementById('exp-cat').value = 'Studio/Rent';
+  document.getElementById('exp-date').value = today();
+  document.getElementById('exp-notes').value = '';
+  openModal('modal-expense');
+}
+function saveExpense() {
+  const amount = parseFloat(document.getElementById('exp-amount').value)||0;
+  if (!amount) { toast('Enter an amount'); return; }
+  const category = document.getElementById('exp-cat').value;
+  const date = document.getElementById('exp-date').value || today();
+  const notes = document.getElementById('exp-notes').value.trim();
+  db.expenses.push({ id: uid(), amount, category, date, notes });
+  saveData(db); closeModal('modal-expense'); renderExpenses(); renderDashboard();
+  toast('Expense saved', 'success');
+}
+
+// ====================== REPORTS ======================
+function renderReports() {
+  const mk = currentMonth;
+  document.getElementById('report-month-label').textContent = monthLabel(mk);
+
+  const collected = db.payments.filter(p=>monthKey(p.date)===mk).reduce((s,p)=>s+p.amount,0);
+  const sessionsThisMonth = db.sessions.filter(s=>monthKey(s.date)===mk);
+  const earned = sessionsThisMonth.reduce((s,sess)=>{
+    const c=db.clients.find(c=>c.id===sess.clientId);
+    return s+(c?sess.price||c.price:0);
+  },0);
+  const expenses = db.expenses.filter(e=>monthKey(e.date)===mk).reduce((s,e)=>s+e.amount,0);
+  const net = collected - expenses;
+  const owed = db.clients.filter(c=>!c.archived).reduce((s,c)=>s+Math.max(0,c.sessionsRemaining),0);
+
+  document.getElementById('rep-collected').textContent = fmt(collected);
+  document.getElementById('rep-earned').textContent = fmt(earned);
+  document.getElementById('rep-expenses').textContent = fmt(expenses);
+  const netEl = document.getElementById('rep-net');
+  netEl.textContent = fmt(net);
+  netEl.className = 'report-value mono ' + (net>=0?'green':'red');
+  document.getElementById('rep-sessions').textContent = sessionsThisMonth.length;
+  document.getElementById('rep-owed').textContent = owed;
+
+  // Top clients
+  const clientEarned = {};
+  sessionsThisMonth.forEach(s => {
+    const c = db.clients.find(c=>c.id===s.clientId);
+    if (!c) return;
+    clientEarned[s.clientId] = (clientEarned[s.clientId]||0) + (s.price||c.price);
+  });
+  const top = Object.entries(clientEarned).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const el = document.getElementById('rep-top-clients');
+  if (!top.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📈</div>No sessions logged yet</div>'; return; }
+  el.innerHTML = top.map(([id,val])=>{
+    const c = db.clients.find(c=>c.id===+id);
+    return `<div class="card-sm" style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:14px;font-weight:600">${c?c.name:'?'}</span>
+      <span style="font-family:'DM Mono',monospace;color:var(--accent)">${fmt(val)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ====================== RENDER ALL ======================
+function renderAll() {
+  renderDashboard();
+  renderClients();
+  renderExpenses();
+  renderReports();
+  renderWealth();
+}
+
+
+// ====================== WEALTH ======================
+function getWealth() {
+  return JSON.parse(localStorage.getItem('coachflow_wealth') || JSON.stringify({
+    savings: 0, investments: 0, cash: 0,
+    allocInvest: 2000, allocSave: 1000,
+    goal: 100000, phase: 'survival',
+    updatedAt: null
+  }));
+}
+function saveWealth(w) { localStorage.setItem('coachflow_wealth', JSON.stringify(w)); }
+
+function renderWealth() {
+  const w = getWealth();
+  const total = (w.savings||0) + (w.investments||0) + (w.cash||0);
+
+  document.getElementById('wealth-total').textContent = fmt(total);
+  document.getElementById('wealth-savings').textContent = fmt(w.savings||0);
+  document.getElementById('wealth-investments').textContent = fmt(w.investments||0);
+  document.getElementById('wealth-cash').textContent = fmt(w.cash||0);
+  document.getElementById('wealth-breakdown').textContent =
+    `Savings ${fmt(w.savings||0)} · Investments ${fmt(w.investments||0)} · Cash ${fmt(w.cash||0)}`;
+  document.getElementById('wealth-updated').textContent =
+    w.updatedAt ? fmtDate(w.updatedAt.split('T')[0]) : 'Never';
+
+  // Goal progress
+  const goal = w.goal || 100000;
+  document.getElementById('wealth-goal-label').textContent = fmt(goal);
+  const pct = Math.min(100, Math.round((total / goal) * 100));
+  document.getElementById('wealth-progress-bar').style.width = pct + '%';
+  document.getElementById('wealth-progress-pct').textContent = pct + '% there';
+  document.getElementById('wealth-goal-gap').textContent = fmt(Math.max(0, goal - total)) + ' to go';
+
+  // Months remaining to Dec 31 2026
+  const now = new Date();
+  const deadline = new Date(2026, 11, 31);
+  const monthsLeft = Math.max(1, Math.round((deadline - now) / (1000 * 60 * 60 * 24 * 30.4)));
+  const needed = Math.max(0, (goal - total) / monthsLeft);
+  document.getElementById('wealth-monthly-needed').textContent = fmt(needed) + '/mo';
+
+  // Allocations — based on this month's net cashflow
+  const mk = currentMonth;
+  const collected = db.payments.filter(p=>monthKey(p.date)===mk).reduce((s,p)=>s+p.amount,0);
+  const expenses = db.expenses.filter(e=>monthKey(e.date)===mk).reduce((s,e)=>s+e.amount,0);
+  const netCashflow = Math.max(0, collected - expenses);
+
+  const invest = Math.min(w.allocInvest||0, netCashflow);
+  const save = Math.min(w.allocSave||0, Math.max(0, netCashflow - invest));
+  const biz = Math.max(0, netCashflow - invest - save);
+
+  document.getElementById('alloc-invest-display').textContent = fmt(invest);
+  document.getElementById('alloc-save-display').textContent = fmt(save);
+  document.getElementById('alloc-biz-display').textContent = fmt(biz);
+  document.getElementById('alloc-cashflow-ref').textContent = fmt(netCashflow);
+
+  const total3 = invest + save + biz;
+  if (total3 > 0) {
+    document.getElementById('alloc-bar-invest').style.width = (invest/total3*100) + '%';
+    document.getElementById('alloc-bar-save').style.width = (save/total3*100) + '%';
+    document.getElementById('alloc-bar-biz').style.width = (biz/total3*100) + '%';
+  }
+
+  // Phase banner
+  const phaseMap = {
+    survival: { cls: 'phase-survival', icon: '🔴', label: 'Survival Mode — Focus on breaking even and staying consistent' },
+    build: { cls: 'phase-build', icon: '🟡', label: 'Build Phase — Ramping income, start allocating July onwards' },
+    optimal: { cls: 'phase-optimal', icon: '🟢', label: 'Optimal — Full allocations firing, compounding in motion' }
+  };
+  const ph = phaseMap[w.phase || 'survival'];
+  document.getElementById('wealth-phase-banner').innerHTML =
+    `<div class="phase-banner ${ph.cls}">${ph.icon} &nbsp;${ph.label}</div>`;
+
+}
+
+function openWealthSettings() {
+  const w = getWealth();
+  document.getElementById('ws-savings').value = w.savings || '';
+  document.getElementById('ws-investments').value = w.investments || '';
+  document.getElementById('ws-cash').value = w.cash || '';
+  document.getElementById('ws-alloc-invest').value = w.allocInvest || '';
+  document.getElementById('ws-alloc-save').value = w.allocSave || '';
+  document.getElementById('ws-goal').value = w.goal || 100000;
+  document.getElementById('ws-phase').value = w.phase || 'survival';
+  updateBizPreview();
+  openModal('modal-wealth-settings');
+}
+
+function updateBizPreview() {
+  const mk = currentMonth;
+  const collected = db.payments.filter(p=>monthKey(p.date)===mk).reduce((s,p)=>s+p.amount,0);
+  const expenses = db.expenses.filter(e=>monthKey(e.date)===mk).reduce((s,e)=>s+e.amount,0);
+  const net = Math.max(0, collected - expenses);
+  const invest = parseFloat(document.getElementById('ws-alloc-invest').value)||0;
+  const save = parseFloat(document.getElementById('ws-alloc-save').value)||0;
+  const biz = Math.max(0, net - invest - save);
+  const el = document.getElementById('ws-biz-preview');
+  if (el) el.textContent = fmt(biz);
+}
+
+// Live preview as user types
+document.addEventListener('DOMContentLoaded', () => {
+  ['ws-alloc-invest','ws-alloc-save'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateBizPreview);
+  });
+});
+
+function saveWealthSettings() {
+  const w = {
+    savings: parseFloat(document.getElementById('ws-savings').value)||0,
+    investments: parseFloat(document.getElementById('ws-investments').value)||0,
+    cash: parseFloat(document.getElementById('ws-cash').value)||0,
+    allocInvest: parseFloat(document.getElementById('ws-alloc-invest').value)||0,
+    allocSave: parseFloat(document.getElementById('ws-alloc-save').value)||0,
+    goal: parseFloat(document.getElementById('ws-goal').value)||100000,
+    phase: document.getElementById('ws-phase').value,
+    updatedAt: new Date().toISOString()
+  };
+  saveWealth(w);
+  closeModal('modal-wealth-settings');
+  renderWealth();
+  toast('Net worth updated', 'success');
+}
+
+// ====================== INIT ======================
+initDB();
+renderAll();
+</script>
+</body>
+</html>
