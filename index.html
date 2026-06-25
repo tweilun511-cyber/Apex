@@ -781,20 +781,38 @@
   <!-- QUICK LOG -->
   <div class="page" id="page-quicklog">
     <div class="page-header">
-      <div class="page-title">Quick Log</div>
+      <div>
+        <div class="page-title">Log Income</div>
+        <div class="page-sub">Tap to add. Done.</div>
+      </div>
+      <div id="ql-today-total" style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;color:var(--green)">RM 0</div>
     </div>
-    <div class="section-label">Select Client</div>
-    <div class="search-wrap"><span class="search-icon">🔍</span><input type="search" class="search-input" placeholder="Search…" id="ql-search" oninput="renderQLClients()"></div>
-    <div class="ql-client-grid" id="ql-client-grid"></div>
-    <div id="ql-actions" style="display:none">
-      <div class="divider"></div>
-      <div class="client-pill" style="margin-bottom:12px"><div class="client-pill-dot"></div><div><div class="client-pill-name" id="ql-selected-name">—</div><div style="font-size:12px;color:rgba(232,184,75,0.6);margin-top:2px" id="ql-selected-info">—</div></div></div>
-      <button class="btn btn-primary" style="margin-bottom:10px;font-size:17px;padding:20px;border-radius:16px;letter-spacing:-0.3px" onclick="qlLogSession()">✓ &nbsp;Session Completed</button>
-      <div class="action-row">
-        <button class="btn btn-green btn-sm" onclick="openQLPayment()">+ Payment</button>
-        <button class="btn btn-secondary btn-sm" onclick="openQLPackage()">+ Package</button>
+
+    <!-- Running total strip -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="stat-label" style="margin-bottom:4px">Today</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:600;color:var(--green)" id="ql-today-big">RM 0</div>
+      </div>
+      <div style="text-align:right">
+        <div class="stat-label" style="margin-bottom:4px">This Month</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:600;color:var(--accent)" id="ql-month-total">RM 0</div>
       </div>
     </div>
+
+    <!-- Quick amount buttons -->
+    <div class="section-label">Your Session Rates</div>
+    <div id="ql-amount-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"></div>
+
+    <!-- Custom amount -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input class="input" id="ql-custom-amount" type="number" inputmode="decimal" placeholder="Custom amount…" style="flex:1">
+      <button class="btn btn-secondary" style="width:auto;padding:12px 18px;flex-shrink:0" onclick="qlAddCustom()">Add</button>
+    </div>
+
+    <!-- Recent logs today -->
+    <div class="section-label">Logged Today</div>
+    <div id="ql-today-list"></div>
   </div>
 
   <!-- EXPENSES -->
@@ -1316,7 +1334,7 @@ function switchTab(tab) {
   const tabEl = document.getElementById('tab-'+tab);
   if (tabEl) tabEl.classList.add('active');
   currentTab = tab;
-  if (tab === 'quicklog') { renderQLClients(); qlSelectedId = null; document.getElementById('ql-actions').style.display='none'; }
+  if (tab === 'quicklog') { renderQL(); }
   if (tab === 'clients') renderClients();
   if (tab === 'expenses') renderExpenses();
   if (tab === 'reports') renderReports();
@@ -1518,40 +1536,111 @@ function logSession(clientId) {
 }
 
 // ====================== QUICK LOG ======================
-let qlSelectedId = null;
-function renderQLClients() {
-  const q = (document.getElementById('ql-search')?.value||'').toLowerCase();
-  const active = db.clients.filter(c=>!c.archived && c.name.toLowerCase().includes(q));
-  const grid = document.getElementById('ql-client-grid');
-  grid.innerHTML = active.map(c=>`
-    <div class="ql-client-btn ${qlSelectedId===c.id?'selected':''}" onclick="qlSelectClient(${c.id})">
-      <div class="ql-client-name">${c.name}</div>
-      <div class="ql-client-sessions">${c.sessionsRemaining>0?c.sessionsRemaining+' sessions left':'Pay-as-you-go'}</div>
-    </div>`).join('');
+function renderQL() {
+  if (currentTab !== 'quicklog') return;
+
+  // Unique rates from active clients, sorted
+  const rates = [...new Set(db.clients.filter(c=>!c.archived).map(c=>c.price))].sort((a,b)=>a-b);
+  const grid = document.getElementById('ql-amount-grid');
+  if (grid) {
+    grid.innerHTML = rates.map(r => `
+      <button onclick="qlTap(${r})" style="
+        background:var(--surface);
+        border:1px solid var(--border);
+        border-radius:14px;
+        padding:18px 8px;
+        color:var(--text);
+        font-family:'JetBrains Mono',monospace;
+        font-size:18px;
+        font-weight:600;
+        cursor:pointer;
+        transition:all 0.12s;
+        letter-spacing:-0.5px;
+        -webkit-tap-highlight-color:transparent;
+      " onmousedown="this.style.transform='scale(0.93)';this.style.background='var(--accent-dim)';this.style.borderColor='rgba(232,184,75,0.4)'" 
+         onmouseup="this.style.transform='';this.style.background='';this.style.borderColor=''"
+         ontouchstart="this.style.transform='scale(0.93)';this.style.background='var(--accent-dim)';this.style.borderColor='rgba(232,184,75,0.4)'"
+         ontouchend="this.style.transform='';this.style.background='var(--surface)';this.style.borderColor='var(--border)'">
+        +${r}
+      </button>`).join('');
+  }
+
+  // Today totals
+  const todaySessions = db.sessions.filter(s => s.date === today());
+  const todayIncome = todaySessions.reduce((sum,s) => sum + (s.price||0), 0);
+  const mk = currentMonth;
+  const monthIncome = db.sessions.filter(s=>monthKey(s.date)===mk).reduce((sum,s)=>sum+(s.price||0),0)
+                    + db.payments.filter(p=>monthKey(p.date)===mk && p.type!=='session').reduce((sum,p)=>sum+p.amount,0);
+
+  const todayEl = document.getElementById('ql-today-big');
+  const monthEl = document.getElementById('ql-month-total');
+  const todayHdr = document.getElementById('ql-today-total');
+  if (todayEl) todayEl.textContent = fmt(todayIncome);
+  if (monthEl) monthEl.textContent = fmt(monthIncome);
+  if (todayHdr) todayHdr.textContent = fmt(todayIncome);
+
+  // Today log list
+  const listEl = document.getElementById('ql-today-list');
+  if (listEl) {
+    if (!todaySessions.length) {
+      listEl.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div>Nothing logged yet today</div>';
+    } else {
+      const sorted = [...todaySessions].reverse();
+      listEl.innerHTML = sorted.map(s => {
+        const c = db.clients.find(c=>c.id===s.clientId);
+        return `<div class="expense-item" style="align-items:center">
+          <div class="expense-left">
+            <div style="font-size:15px;font-weight:600">${c ? c.name : 'Manual'}</div>
+            <div class="expense-cat" style="margin-top:2px">${s.note||'Session'}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:var(--green)">+${fmt(s.price)}</div>
+            <button onclick="qlDeleteEntry(${s.id})" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px;line-height:1">×</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
 }
-function qlSelectClient(id) {
-  qlSelectedId = id;
-  const c = db.clients.find(c=>c.id===id);
-  document.getElementById('ql-selected-name').textContent = c.name;
-  document.getElementById('ql-selected-info').textContent = `${fmt(c.price)}/session · ${c.sessionsRemaining>0?c.sessionsRemaining+' remaining':'Pay-as-you-go'}`;
-  document.getElementById('ql-actions').style.display = 'block';
-  renderQLClients();
+
+function qlTap(amount) {
+  // Find a client with this exact price, or use first match
+  const match = db.clients.find(c=>!c.archived && c.price===amount);
+  const clientId = match ? match.id : null;
+  
+  // Log as a session
+  const sess = { id: uid(), clientId, price: amount, date: today(), note: match ? match.name : 'Session' };
+  db.sessions.push(sess);
+  if (match && match.sessionsRemaining > 0) match.sessionsRemaining--;
+  saveData(db);
+  
+  // Haptic pulse on the button (visual feedback)
+  toast(`+${fmt(amount)} logged`, 'success');
+  renderQL();
+  renderDashboard();
 }
-function qlLogSession() {
-  if (!qlSelectedId) return;
-  logSession(qlSelectedId);
-  const c = db.clients.find(c=>c.id===qlSelectedId);
-  document.getElementById('ql-selected-info').textContent = `${fmt(c.price)}/session · ${c.sessionsRemaining>0?c.sessionsRemaining+' remaining':'Pay-as-you-go'}`;
-  renderQLClients();
+
+function qlAddCustom() {
+  const val = parseFloat(document.getElementById('ql-custom-amount').value);
+  if (!val || val <= 0) { toast('Enter an amount'); return; }
+  qlTap(val);
+  document.getElementById('ql-custom-amount').value = '';
 }
-function openQLPayment() {
-  if (!qlSelectedId) return;
-  openPaymentModal(qlSelectedId);
+
+function qlDeleteEntry(id) {
+  db.sessions = db.sessions.filter(s=>s.id!==id);
+  saveData(db);
+  renderQL();
+  renderDashboard();
+  toast('Entry removed');
 }
-function openQLPackage() {
-  if (!qlSelectedId) return;
-  openPackageModal(qlSelectedId);
-}
+
+// Keep stubs so nothing else breaks
+function renderQLClients() { renderQL(); }
+function qlSelectClient() {}
+function qlLogSession() {}
+function openQLPayment() {}
+function openQLPackage() {}
 
 // ====================== PAYMENT ======================
 let paymentForClientId = null;
@@ -1701,6 +1790,7 @@ function renderAll() {
   renderExpenses();
   renderReports();
   renderWealth();
+  if (currentTab==='quicklog') renderQL();
 }
 
 
